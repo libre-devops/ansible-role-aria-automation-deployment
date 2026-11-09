@@ -1,0 +1,25 @@
+---
+galaxy_info:
+  namespace: libre_devops
+  role_name: aria_automation_deployment
+  author: Craig Thacker
+  company: Libre DevOps
+  description: >-
+    Request, wait for, use and delete VMware Aria Automation 8 (vRealize Automation 8)
+    deployments from a catalog item over the REST API, and add their machines to the inventory
+  license: MIT
+  min_ansible_version: "2.16"
+  issue_tracker_url: https://github.com/libre-devops/ansible-role-aria-automation-deployment/issues
+  platforms:
+    - name: GenericLinux
+      versions:
+        - all
+  galaxy_tags:
+    - vmware
+    - aria
+    - vra
+    - vrealize
+    - automation
+    - provisioning
+
+dependencies: []

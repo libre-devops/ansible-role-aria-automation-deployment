@@ -1,0 +1,11 @@
+---
+profile: production
+exclude_paths:
+  - .ansible/
+  - .cache/
+  - .github/
+  - .venv/
+
+# The Molecule scenario's shared variables, not a playbook.
+kinds:
+  - vars: "**/molecule/*/vars.yml"

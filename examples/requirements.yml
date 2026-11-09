@@ -1,0 +1,8 @@
+---
+# Install the role straight from GitHub, pinned to a release tag:
+#   ansible-galaxy install -r requirements.yml
+roles:
+  - name: libre_devops.aria_automation_deployment
+    src: https://github.com/libre-devops/ansible-role-aria-automation-deployment.git
+    scm: git
+    version: 1.0.0

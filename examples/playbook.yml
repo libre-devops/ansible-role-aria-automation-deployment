@@ -1,0 +1,20 @@
+---
+# Example used by `just live`. Put your values in an encrypted vars file (see lab.example.yml),
+# then:
+#
+#   just live -e @lab.vault.yml --ask-vault-pass        # build the test VMs
+#   just live -e @lab.vault.yml -e aria_automation_deployment_state=absent --ask-vault-pass
+#                                                       # delete them
+- name: Build short-lived test VMs in Aria Automation
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: libre_devops.aria_automation_deployment
+
+- name: Use the test VMs
+  hosts: aria_automation_machines
+  gather_facts: false
+  tasks:
+    - name: Show where each test VM is
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} is at {{ ansible_host }}"

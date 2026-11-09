@@ -1,0 +1,44 @@
+---
+# Runs on the control node against molecule/fixtures/mock_aria.py, a stand-in for the Aria
+# Automation API, so no containers and no real Aria Automation are needed.
+#
+# prepare      starts the mock
+# converge     creates two deployments, checks the in-memory hosts and the inventory file
+# idempotence  runs converge again: both deployments are reused, nothing is requested
+# side_effect  checks a failed deployment is reported, then deletes everything, signing in
+#              with a user name and password this time
+# verify       checks the mock's counters and that nothing is left
+# destroy      stops the mock (also first, to clear one left by a failed run, and to reset
+#              Molecule's state, which otherwise skips prepare on the next run)
+driver:
+  name: default
+  options:
+    managed: false
+
+platforms:
+  - name: instance
+
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      callback_result_format: yaml
+      interpreter_python: auto_silent
+  inventory:
+    host_vars:
+      instance:
+        ansible_connection: local
+
+verifier:
+  name: ansible
+
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - prepare
+    - converge
+    - idempotence
+    - side_effect
+    - verify
+    - destroy

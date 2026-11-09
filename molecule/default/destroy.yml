@@ -1,0 +1,12 @@
+---
+- name: Stop the mock Aria Automation API
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: Ask the mock to stop
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ mock_port }}/mock/shutdown"
+        method: POST
+      failed_when: false

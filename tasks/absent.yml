@@ -1,0 +1,50 @@
+---
+# One item of aria_automation_deployment_deployments, state absent: delete the deployment with
+# this name in the project, if there is one, and wait until it is gone.
+
+- name: Find the project and the deployment
+  ansible.builtin.include_tasks: resolve.yml
+
+- name: Delete the deployment
+  ansible.builtin.uri:
+    url: "{{ __aria_automation_deployment_base }}/deployment/api/deployments/{{ __aria_automation_deployment_id }}"
+    method: DELETE
+    headers: "{{ __aria_automation_deployment_headers }}"
+    validate_certs: "{{ aria_automation_deployment_validate_certs }}"
+    timeout: "{{ aria_automation_deployment_http_timeout }}"
+    status_code: [200, 202, 204]
+  register: __aria_automation_deployment_delete
+  changed_when: true
+  when:
+    - __aria_automation_deployment_id | length > 0
+    - not ansible_check_mode
+
+# The deployment API answers 404 once a deployment is gone.
+- name: Wait for the deployment to be gone
+  ansible.builtin.uri:
+    url: "{{ __aria_automation_deployment_base }}/deployment/api/deployments/{{ __aria_automation_deployment_id }}?expand=lastRequest"
+    headers: "{{ __aria_automation_deployment_headers }}"
+    validate_certs: "{{ aria_automation_deployment_validate_certs }}"
+    timeout: "{{ aria_automation_deployment_http_timeout }}"
+    status_code: [200, 404]
+  register: __aria_automation_deployment_gone
+  changed_when: false
+  no_log: "{{ aria_automation_deployment_no_log | bool }}"
+  retries: "{{ __aria_automation_deployment_retries }}"
+  delay: "{{ aria_automation_deployment_poll_interval }}"
+  until: >-
+    __aria_automation_deployment_gone.status == 404
+    or __aria_automation_deployment_gone.json.status | default('') in ['DELETE_FAILED', 'DELETE_SUCCESSFUL']
+  when: __aria_automation_deployment_delete is not skipped
+
+- name: Check the deployment was deleted
+  ansible.builtin.assert:
+    that:
+      - __aria_automation_deployment_gone.status == 404
+        or __aria_automation_deployment_gone.json.status | default('') == 'DELETE_SUCCESSFUL'
+    fail_msg: >-
+      Deleting {{ __aria_automation_deployment_item.name }} ({{ __aria_automation_deployment_id }}) ended
+      {{ __aria_automation_deployment_gone.json.status | default('unknown') }}:
+      {{ __aria_automation_deployment_gone.json.lastRequest.details | default('no details from the last request') }}
+    quiet: true
+  when: __aria_automation_deployment_delete is not skipped

@@ -1,0 +1,6 @@
+---
+blank_issues_enabled: false
+contact_links:
+  - name: VMware Aria Automation API documentation
+    url: https://developer.broadcom.com/xapis/vrealize-automation-catalog-api/latest/
+    about: Questions about Aria Automation itself, rather than this role.

@@ -1,0 +1,15 @@
+{#- The machines from aria_automation_deployment_deployments, as a YAML inventory. Variables whose
+    names match aria_automation_deployment_inventory_exclude_vars (passwords, secrets, tokens) are
+    left out: put credentials in Ansible Vault, in group_vars or host_vars next to this file. -#}
+{%- set built = namespace(hosts=[], groups=[]) -%}
+{%- for host in __aria_automation_deployment_hosts -%}
+{%- set kept = host.vars | dict2items | rejectattr('key', 'search', aria_automation_deployment_inventory_exclude_vars) | items2dict -%}
+{%- set built.hosts = built.hosts + [{'key': host.name, 'value': kept or none}] -%}
+{%- endfor -%}
+{%- for group in aria_automation_deployment_groups -%}
+{%- set built.groups = built.groups + [{'key': group, 'value': {'hosts': (built.hosts | items2dict) or none}}] -%}
+{%- endfor -%}
+{{ ansible_managed | comment }}
+# Written by the libre_devops.aria_automation_deployment role, and rewritten on every run: keep
+# credentials and other settings in group_vars or host_vars next to this file, not in it.
+{{ {'all': {'children': built.groups | items2dict}} | to_nice_yaml(indent=2) }}

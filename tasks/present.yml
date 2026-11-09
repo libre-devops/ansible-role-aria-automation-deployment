@@ -1,0 +1,131 @@
+---
+# One item of aria_automation_deployment_deployments, state present: reuse the deployment if one
+# with this name exists in the project, otherwise request the catalog item, then wait for it and
+# keep its machines.
+
+- name: Find the project and any existing deployment
+  ansible.builtin.include_tasks: resolve.yml
+
+- name: Look up the catalog item by name
+  ansible.builtin.uri:
+    url: >-
+      {{ __aria_automation_deployment_base }}/catalog/api/items?search={{
+         __aria_automation_deployment_item.catalog_item | urlencode }}&projects={{
+         __aria_automation_deployment_project_id | urlencode }}&%24top=200
+    headers: "{{ __aria_automation_deployment_headers }}"
+    validate_certs: "{{ aria_automation_deployment_validate_certs }}"
+    timeout: "{{ aria_automation_deployment_http_timeout }}"
+  register: __aria_automation_deployment_catalog
+  changed_when: false
+  check_mode: false
+  when:
+    - __aria_automation_deployment_id | length == 0
+    - __aria_automation_deployment_item.catalog_item is not match(__aria_automation_deployment_uuid)
+
+- name: Note the matching catalog item IDs
+  ansible.builtin.set_fact:
+    __aria_automation_deployment_catalog_ids: >-
+      {{ [__aria_automation_deployment_item.catalog_item] if __aria_automation_deployment_item.catalog_item is match(__aria_automation_deployment_uuid)
+         else (__aria_automation_deployment_catalog.json.content | default([])
+               | selectattr('name', 'equalto', __aria_automation_deployment_item.catalog_item)
+               | map(attribute='id') | list) }}
+  when: __aria_automation_deployment_id | length == 0
+
+- name: Check the catalog item name matched exactly one item
+  ansible.builtin.assert:
+    that:
+      - __aria_automation_deployment_catalog_ids | length == 1
+    fail_msg: >-
+      Catalog item '{{ __aria_automation_deployment_item.catalog_item }}' matched
+      {{ __aria_automation_deployment_catalog_ids | length }} items shared with project
+      {{ __aria_automation_deployment_project }}. Check the name and the project's entitlements, or use
+      the catalog item ID.
+    quiet: true
+  when: __aria_automation_deployment_id | length == 0
+
+- name: Request the catalog item
+  ansible.builtin.uri:
+    url: "{{ __aria_automation_deployment_base }}/catalog/api/items/{{ __aria_automation_deployment_catalog_ids[0] }}/request"
+    method: POST
+    headers: "{{ __aria_automation_deployment_headers }}"
+    body_format: json
+    body: >-
+      {{ {'deploymentName': __aria_automation_deployment_item.name,
+          'projectId': __aria_automation_deployment_project_id,
+          'inputs': __aria_automation_deployment_item.inputs | default({}),
+          'reason': __aria_automation_deployment_item.reason | default(aria_automation_deployment_reason, true)}
+         | combine({'version': __aria_automation_deployment_item.catalog_item_version}
+                   if __aria_automation_deployment_item.catalog_item_version | default('') | length > 0 else {}) }}
+    validate_certs: "{{ aria_automation_deployment_validate_certs }}"
+    timeout: "{{ aria_automation_deployment_http_timeout }}"
+    status_code: [200, 201, 202]
+  register: __aria_automation_deployment_request
+  changed_when: true
+  when:
+    - __aria_automation_deployment_id | length == 0
+    - not ansible_check_mode
+
+- name: Note the new deployment
+  ansible.builtin.set_fact:
+    __aria_automation_deployment_id: "{{ __aria_automation_deployment_request.json[0].deploymentId }}"
+  when: __aria_automation_deployment_request is not skipped
+
+- name: Wait for the deployment to finish
+  ansible.builtin.uri:
+    url: >-
+      {{ __aria_automation_deployment_base }}/deployment/api/deployments/{{
+         __aria_automation_deployment_id }}?expand=resources&expand=lastRequest
+    headers: "{{ __aria_automation_deployment_headers }}"
+    validate_certs: "{{ aria_automation_deployment_validate_certs }}"
+    timeout: "{{ aria_automation_deployment_http_timeout }}"
+  register: __aria_automation_deployment_status
+  changed_when: false
+  check_mode: false
+  no_log: "{{ aria_automation_deployment_no_log | bool }}"
+  retries: "{{ __aria_automation_deployment_retries }}"
+  delay: "{{ aria_automation_deployment_poll_interval }}"
+  until: >-
+    __aria_automation_deployment_status.json.status | default('')
+    in (__aria_automation_deployment_done + __aria_automation_deployment_failed)
+  when: __aria_automation_deployment_id | length > 0
+
+- name: Check the deployment succeeded
+  ansible.builtin.assert:
+    that:
+      - __aria_automation_deployment_status.json.status in __aria_automation_deployment_done
+    fail_msg: >-
+      Deployment {{ __aria_automation_deployment_item.name }} ({{ __aria_automation_deployment_id }}) is
+      {{ __aria_automation_deployment_status.json.status }}:
+      {{ __aria_automation_deployment_status.json.lastRequest.details | default('no details from the last request') }}.
+      Delete it (aria_automation_deployment_state: absent) before requesting it again.
+    quiet: true
+  when: __aria_automation_deployment_id | length > 0
+
+- name: Pick out the machines
+  ansible.builtin.set_fact:
+    __aria_automation_deployment_machines_json: >-
+      [
+      {%- for resource in __aria_automation_deployment_status.json.resources | default([])
+            if resource.type in aria_automation_deployment_machine_types -%}
+      {{ {'name': resource.name, 'id': resource.id | default(''), 'type': resource.type,
+          'deployment': __aria_automation_deployment_item.name,
+          'address': (resource.properties | default({})).address | default(''),
+          'properties': resource.properties | default({})} | to_json }}{{ ',' if not loop.last }}
+      {%- endfor -%}
+      ]
+  no_log: "{{ aria_automation_deployment_no_log | bool }}"
+  when: __aria_automation_deployment_id | length > 0
+
+- name: Keep the deployment and its machines
+  ansible.builtin.set_fact:
+    aria_automation_deployment_results: >-
+      {{ aria_automation_deployment_results + [{
+           'name': __aria_automation_deployment_item.name,
+           'id': __aria_automation_deployment_id,
+           'project_id': __aria_automation_deployment_project_id,
+           'status': __aria_automation_deployment_status.json.status,
+           'requested': __aria_automation_deployment_request is changed,
+           'machines': __aria_automation_deployment_machines_json | from_json
+         }] }}
+  no_log: "{{ aria_automation_deployment_no_log | bool }}"
+  when: __aria_automation_deployment_id | length > 0

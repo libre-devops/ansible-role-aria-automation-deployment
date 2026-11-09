@@ -1,0 +1,46 @@
+---
+- name: A failed deployment is reported with the request's error
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: Request a catalog item that fails
+      block:
+        - name: Run the role
+          ansible.builtin.include_role:
+            name: libre_devops.aria_automation_deployment
+          vars:
+            aria_automation_deployment_refresh_token: molecule-refresh-token
+            aria_automation_deployment_deployments:
+              - name: molecule-broken
+                catalog_item: Broken server
+
+        - name: Fail if the role did not stop
+          ansible.builtin.fail:
+            msg: The role did not report the failed deployment.
+      rescue:
+        - name: Check the role stopped with the request's error
+          ansible.builtin.assert:
+            that:
+              - "'CREATE_FAILED' in ansible_failed_result.msg"
+              - "'Mock failure: no capacity' in ansible_failed_result.msg"
+            quiet: true
+
+- name: Delete everything, signing in with a user name and password
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars.yml
+  roles:
+    - role: libre_devops.aria_automation_deployment
+      vars:
+        aria_automation_deployment_state: absent
+        aria_automation_deployment_username: molecule
+        aria_automation_deployment_password: molecule-password
+        aria_automation_deployment_inventory_file: "{{ mock_inventory_file }}"
+        aria_automation_deployment_deployments:
+          - name: molecule-rhel9
+          - name: molecule-rhel8
+          - name: molecule-broken
+          - name: molecule-never-existed

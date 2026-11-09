@@ -1,0 +1,74 @@
+---
+# For one item of aria_automation_deployment_deployments: the project ID, and the deployment
+# with that name in that project, if there is one. Names are looked up with the API's own
+# filters, then matched exactly here, because those filters can match partly.
+
+- name: Note the project
+  ansible.builtin.set_fact:
+    __aria_automation_deployment_project: "{{ __aria_automation_deployment_item.project | default(aria_automation_deployment_project, true) }}"
+
+- name: Check a project is given
+  ansible.builtin.assert:
+    that:
+      - __aria_automation_deployment_project | length > 0
+    fail_msg: >-
+      Deployment {{ __aria_automation_deployment_item.name }} has no project. Set project on the item,
+      or aria_automation_deployment_project.
+    quiet: true
+
+- name: Look up the project by name
+  ansible.builtin.uri:
+    url: >-
+      {{ __aria_automation_deployment_base }}/iaas/api/projects?%24filter={{
+         ("name eq '" ~ __aria_automation_deployment_project ~ "'") | urlencode }}
+    headers: "{{ __aria_automation_deployment_headers }}"
+    validate_certs: "{{ aria_automation_deployment_validate_certs }}"
+    timeout: "{{ aria_automation_deployment_http_timeout }}"
+  register: __aria_automation_deployment_projects
+  changed_when: false
+  check_mode: false
+  when: __aria_automation_deployment_project is not match(__aria_automation_deployment_uuid)
+
+- name: Note the matching project IDs
+  ansible.builtin.set_fact:
+    __aria_automation_deployment_project_ids: >-
+      {{ [__aria_automation_deployment_project] if __aria_automation_deployment_project is match(__aria_automation_deployment_uuid)
+         else (__aria_automation_deployment_projects.json.content | default([])
+               | selectattr('name', 'equalto', __aria_automation_deployment_project)
+               | map(attribute='id') | list) }}
+
+- name: Check the project name matched exactly one project
+  ansible.builtin.assert:
+    that:
+      - __aria_automation_deployment_project_ids | length == 1
+    fail_msg: >-
+      Project '{{ __aria_automation_deployment_project }}' matched
+      {{ __aria_automation_deployment_project_ids | length }} projects you can see. Check the name, or use
+      the project ID.
+    quiet: true
+
+- name: Keep the project ID
+  ansible.builtin.set_fact:
+    __aria_automation_deployment_project_id: "{{ __aria_automation_deployment_project_ids[0] }}"
+
+- name: Look for an existing deployment with this name
+  ansible.builtin.uri:
+    url: >-
+      {{ __aria_automation_deployment_base }}/deployment/api/deployments?name={{
+         __aria_automation_deployment_item.name | urlencode }}&projects={{ __aria_automation_deployment_project_id | urlencode }}
+    headers: "{{ __aria_automation_deployment_headers }}"
+    validate_certs: "{{ aria_automation_deployment_validate_certs }}"
+    timeout: "{{ aria_automation_deployment_http_timeout }}"
+  register: __aria_automation_deployment_existing
+  changed_when: false
+  check_mode: false
+  no_log: "{{ aria_automation_deployment_no_log | bool }}"
+
+- name: Note the existing deployment
+  ansible.builtin.set_fact:
+    __aria_automation_deployment_id: >-
+      {{ __aria_automation_deployment_existing.json.content | default([])
+         | selectattr('name', 'equalto', __aria_automation_deployment_item.name)
+         | selectattr('projectId', 'equalto', __aria_automation_deployment_project_id)
+         | rejectattr('status', 'equalto', 'DELETE_SUCCESSFUL')
+         | map(attribute='id') | first | default('') }}

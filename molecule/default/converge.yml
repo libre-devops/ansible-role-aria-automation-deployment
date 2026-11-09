@@ -1,0 +1,59 @@
+---
+- name: Create two test deployments
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars.yml
+  vars:
+    aria_automation_deployment_refresh_token: molecule-refresh-token
+    aria_automation_deployment_inventory_file: "{{ mock_inventory_file }}"
+    aria_automation_deployment_deployments:
+      - name: molecule-rhel9
+        catalog_item: Linux server
+        inputs:
+          cpu: 2
+      - name: molecule-rhel8
+        catalog_item: 33333333-3333-4333-8333-333333333333
+        project: 11111111-1111-4111-8111-111111111111
+        inputs:
+          cpu: 4
+  roles:
+    - role: libre_devops.aria_automation_deployment
+
+- name: Check the machines are in the in-memory inventory
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: Check the groups and host variables
+      ansible.builtin.assert:
+        that:
+          - groups['aria_test_vms'] | sort == ['molecule-rhel8-01', 'molecule-rhel9-01']
+          - groups['linux'] | sort == ['molecule-rhel8-01', 'molecule-rhel9-01']
+          - hostvars['molecule-rhel9-01'].ansible_host is match('^192\.0\.2\.')
+          - hostvars['molecule-rhel9-01'].ansible_user == 'root'
+          - hostvars['molecule-rhel9-01'].ansible_password == 'not-a-real-secret'
+          - hostvars['molecule-rhel8-01'].vm_cpu_count | int == 4
+          - aria_automation_deployment_results | length == 2
+          - aria_automation_deployment_results | map(attribute='status') | unique | list == ['CREATE_SUCCESSFUL']
+          - aria_automation_deployment_results | map(attribute='machines') | flatten | map(attribute='address') | select | list | length == 2
+        quiet: true
+
+    - name: Read the inventory file
+      ansible.builtin.slurp:
+        src: "{{ mock_inventory_file }}"
+      register: __inventory_file
+
+    - name: Check the inventory file lists the machines without the password
+      vars:
+        written: "{{ __inventory_file.content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - written.all.children.aria_test_vms.hosts | list | sort == ['molecule-rhel8-01', 'molecule-rhel9-01']
+          - written.all.children.linux.hosts | list | sort == ['molecule-rhel8-01', 'molecule-rhel9-01']
+          - written.all.children.aria_test_vms.hosts['molecule-rhel9-01'].ansible_host is match('^192\.0\.2\.')
+          - written.all.children.aria_test_vms.hosts['molecule-rhel9-01'].ansible_user == 'root'
+          - "'ansible_password' not in written.all.children.aria_test_vms.hosts['molecule-rhel9-01']"
+          - "'not-a-real-secret' not in (__inventory_file.content | b64decode)"
+        quiet: true

@@ -1,0 +1,54 @@
+---
+# Runs on the control node: put the role in a play for localhost, or delegate it there.
+
+- name: Check the variables
+  ansible.builtin.assert:
+    that:
+      - aria_automation_deployment_url | length > 0
+      - (aria_automation_deployment_refresh_token | length > 0)
+        or (aria_automation_deployment_username | length > 0 and aria_automation_deployment_password | length > 0)
+      - aria_automation_deployment_deployments | rejectattr('name', 'defined') | list | length == 0
+      - aria_automation_deployment_state == 'absent'
+        or aria_automation_deployment_deployments | rejectattr('catalog_item', 'defined') | list | length == 0
+      - aria_automation_deployment_deployments | map(attribute='name') | unique | list | length
+        == aria_automation_deployment_deployments | length
+    fail_msg: >-
+      Set aria_automation_deployment_url, and either aria_automation_deployment_refresh_token or
+      aria_automation_deployment_username and aria_automation_deployment_password. Every item of
+      aria_automation_deployment_deployments needs a unique name, and a catalog_item to create it.
+    quiet: true
+
+- name: Sign in
+  ansible.builtin.include_tasks: auth.yml
+
+- name: Start with no results
+  ansible.builtin.set_fact:
+    aria_automation_deployment_results: []
+
+- name: Create or reuse the deployments
+  ansible.builtin.include_tasks: present.yml
+  loop: "{{ aria_automation_deployment_deployments }}"
+  loop_control:
+    loop_var: __aria_automation_deployment_item
+    label: "{{ __aria_automation_deployment_item.name }}"
+  when: aria_automation_deployment_state == 'present'
+
+- name: Add the machines to the inventory
+  ansible.builtin.include_tasks: hosts.yml
+  when: aria_automation_deployment_state == 'present'
+
+- name: Delete the deployments
+  ansible.builtin.include_tasks: absent.yml
+  loop: "{{ aria_automation_deployment_deployments }}"
+  loop_control:
+    loop_var: __aria_automation_deployment_item
+    label: "{{ __aria_automation_deployment_item.name }}"
+  when: aria_automation_deployment_state == 'absent'
+
+- name: Remove the inventory file
+  ansible.builtin.file:
+    path: "{{ aria_automation_deployment_inventory_file }}"
+    state: absent
+  when:
+    - aria_automation_deployment_state == 'absent'
+    - aria_automation_deployment_inventory_file | length > 0

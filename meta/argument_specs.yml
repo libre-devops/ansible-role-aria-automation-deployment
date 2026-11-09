@@ -1,0 +1,136 @@
+---
+argument_specs:
+  main:
+    short_description: Request, wait for, use and delete VMware Aria Automation 8 deployments
+    description:
+      - Requests deployments of catalog items through the Aria Automation (vRealize Automation 8)
+        REST API, or reuses ones with the same name in the project, waits for them, and adds their
+        machines to the in-memory inventory and, optionally, to a YAML inventory file.
+      - The absent state deletes the deployments and waits until they are gone.
+      - Runs on the control node with ansible.builtin.uri only.
+      - aria_automation_deployment_host_name and aria_automation_deployment_host_vars are not
+        in this specification on purpose. They are templates for each machine, with the
+        machine as resource, and the specification check would try to template them before any
+        machine exists. The role checks their types itself, once per machine.
+    author:
+      - Craig Thacker
+    options:
+      aria_automation_deployment_url:
+        description: Base URL of Aria Automation, for example https://automation.example.com.
+        type: str
+        required: true
+      aria_automation_deployment_validate_certs:
+        description: Check the server's TLS certificate.
+        type: bool
+        default: true
+      aria_automation_deployment_refresh_token:
+        description: An Aria Automation API (refresh) token. Preferred over a user name and password.
+        type: str
+        default: ""
+        no_log: true
+      aria_automation_deployment_username:
+        description: User name, used when there is no refresh token.
+        type: str
+        default: ""
+      aria_automation_deployment_password:
+        description: Password for the user name.
+        type: str
+        default: ""
+        no_log: true
+      aria_automation_deployment_domain:
+        description: Identity domain of the user, for directory (not local) users. Empty leaves it out.
+        type: str
+        default: ""
+      aria_automation_deployment_state:
+        description: present creates or reuses the deployments. absent deletes them.
+        type: str
+        choices: [present, absent]
+        default: present
+      aria_automation_deployment_deployments:
+        description: The deployments, one item each.
+        type: list
+        elements: dict
+        default: []
+        options:
+          name:
+            description: Deployment name, unique in the project.
+            type: str
+            required: true
+          catalog_item:
+            description: Catalog item name or ID. Required to create the deployment.
+            type: str
+          catalog_item_version:
+            description: Catalog item version. Empty uses the current one.
+            type: str
+            default: ""
+          project:
+            description: Project name or ID. Empty uses aria_automation_deployment_project.
+            type: str
+            default: ""
+          inputs:
+            description: The catalog item's inputs.
+            type: dict
+            default: {}
+          reason:
+            description: Request reason. Empty uses aria_automation_deployment_reason.
+            type: str
+            default: ""
+      aria_automation_deployment_project:
+        description: Project name or ID for items that do not set one.
+        type: str
+        default: ""
+      aria_automation_deployment_reason:
+        description: Request reason for items that do not set one.
+        type: str
+        default: Requested by Ansible
+      aria_automation_deployment_timeout:
+        description: Seconds to wait for a deployment to be created or deleted.
+        type: int
+        default: 3600
+      aria_automation_deployment_poll_interval:
+        description: Seconds between status checks.
+        type: int
+        default: 30
+      aria_automation_deployment_http_timeout:
+        description: Seconds each API call may take.
+        type: int
+        default: 60
+      aria_automation_deployment_machine_types:
+        description: Resource types that are machines, and so become inventory hosts.
+        type: list
+        elements: str
+        default:
+          - Cloud.vSphere.Machine
+          - Cloud.Machine
+      aria_automation_deployment_add_hosts:
+        description: Add each machine to the in-memory inventory, for later plays in the same run.
+        type: bool
+        default: true
+      aria_automation_deployment_groups:
+        description: Inventory groups for the machines, in memory and in the inventory file.
+        type: list
+        elements: str
+        default:
+          - aria_automation_machines
+      aria_automation_deployment_inventory_file:
+        description:
+          - Path on the control node to write the machines to, as a YAML inventory. Empty writes no
+            file. With state absent, the file is removed.
+        type: path
+        default: ""
+      aria_automation_deployment_inventory_exclude_vars:
+        description: Regular expression for host variable names never written to the inventory file.
+        type: str
+        default: "(?i)(pass|secret|token)"
+      aria_automation_deployment_wait_for_connection:
+        description: After adding the hosts, wait until Ansible can connect to each one.
+        type: bool
+        default: false
+      aria_automation_deployment_connection_timeout:
+        description: Seconds to wait for each host to accept connections.
+        type: int
+        default: 600
+      aria_automation_deployment_no_log:
+        description: Hide deployment details, which can hold secrets in resource properties, from Ansible's output.
+        type: bool
+        default: true

@@ -1,0 +1,67 @@
+---
+# Every variable is described in README.md and validated by meta/argument_specs.yml.
+
+# Base URL of VMware Aria Automation (vRealize Automation 8), for example
+# https://automation.example.com
+aria_automation_deployment_url: ""
+aria_automation_deployment_validate_certs: true
+
+# Sign-in. An API (refresh) token is preferred. Otherwise a user name and password, with the
+# identity domain when the user is not local.
+aria_automation_deployment_refresh_token: ""
+aria_automation_deployment_username: ""
+aria_automation_deployment_password: ""
+aria_automation_deployment_domain: ""
+
+# present requests the deployments (or reuses ones that already exist) and adds their machines
+# to the inventory. absent deletes them.
+aria_automation_deployment_state: present
+
+# The deployments. Each item:
+#   name:                 deployment name, unique in the project
+#   catalog_item:         catalog item name or ID
+#   catalog_item_version: catalog item version (optional)
+#   project:              project name or ID (optional, defaults to aria_automation_deployment_project)
+#   inputs:               the catalog item's inputs (optional)
+#   reason:               request reason (optional, defaults to aria_automation_deployment_reason)
+aria_automation_deployment_deployments: []
+aria_automation_deployment_project: ""
+aria_automation_deployment_reason: Requested by Ansible
+
+# How long to wait for a deployment to be created or deleted, and how often to check.
+aria_automation_deployment_timeout: 3600
+aria_automation_deployment_poll_interval: 30
+
+# Timeout for each API call.
+aria_automation_deployment_http_timeout: 60
+
+# Resource types that are machines, and so become inventory hosts.
+aria_automation_deployment_machine_types:
+  - Cloud.vSphere.Machine
+  - Cloud.Machine
+
+# Add each machine to the in-memory inventory, for later plays in the same run.
+aria_automation_deployment_add_hosts: true
+aria_automation_deployment_groups:
+  - aria_automation_machines
+
+# The inventory host name and host variables for each machine. Templated per machine, with the
+# machine's resource as `resource` (resource.name, resource.type, resource.properties), so they
+# can read any property the catalog item sets.
+aria_automation_deployment_host_name: "{{ resource.properties.resourceName | default(resource.name) }}"
+aria_automation_deployment_host_vars:
+  ansible_host: "{{ resource.properties.address | default(resource.properties.resourceName | default(resource.name)) }}"
+
+# Also write the machines to a YAML inventory file on the control node, for a later run (for
+# example after credentials have been added). Empty writes no file. Host variables whose names
+# match aria_automation_deployment_inventory_exclude_vars are never written to it.
+aria_automation_deployment_inventory_file: ""
+aria_automation_deployment_inventory_exclude_vars: "(?i)(pass|secret|token)"
+
+# After adding the hosts, wait until Ansible can connect to each one.
+aria_automation_deployment_wait_for_connection: false
+aria_automation_deployment_connection_timeout: 600
+
+# Hide deployment details (resource properties can hold secrets) from Ansible's output. Set to
+# false to see them while debugging.
+aria_automation_deployment_no_log: true

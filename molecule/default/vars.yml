@@ -1,0 +1,17 @@
+---
+# Shared by the scenario's playbooks. All values are made up for the mock.
+mock_port: 18943
+aria_automation_deployment_url: "http://127.0.0.1:{{ mock_port }}"
+aria_automation_deployment_validate_certs: false
+aria_automation_deployment_poll_interval: 1
+aria_automation_deployment_timeout: 30
+aria_automation_deployment_project: Test lab
+aria_automation_deployment_groups:
+  - aria_test_vms
+  - linux
+aria_automation_deployment_host_vars:
+  ansible_host: "{{ resource.properties.address }}"
+  ansible_user: root
+  ansible_password: "{{ resource.properties.mockRootSecret }}"
+  vm_cpu_count: "{{ resource.properties.cpuCount }}"
+mock_inventory_file: "{{ lookup('ansible.builtin.env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/aria-test-vms.yml"

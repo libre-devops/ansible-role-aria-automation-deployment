@@ -1,0 +1,18 @@
+---
+# Internal values. Not meant to be overridden.
+
+__aria_automation_deployment_base: "{{ aria_automation_deployment_url | regex_replace('/+$', '') }}"
+__aria_automation_deployment_uuid: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+
+# Deployment statuses (from the Aria Automation deployment API).
+__aria_automation_deployment_done:
+  - CREATE_SUCCESSFUL
+  - UPDATE_SUCCESSFUL
+__aria_automation_deployment_failed:
+  - CREATE_FAILED
+  - UPDATE_FAILED
+  - DELETE_FAILED
+
+# How many times to poll before the timeout.
+__aria_automation_deployment_retries: >-
+  {{ [((aria_automation_deployment_timeout | int) / ([aria_automation_deployment_poll_interval | int, 1] | max)) | round(0, 'ceil') | int, 1] | max }}

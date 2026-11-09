@@ -1,0 +1,17 @@
+# Python and tooling
+.venv/
+__pycache__/
+.cache/
+.ansible/
+.ruff_cache/
+*.retry
+
+# Editors
+.idea/
+.vscode/
+
+# Never commit inventories written by the role, vars files with real values, or vault passwords.
+inventory.ini
+/inventory.yml
+*.vault.yml
+.vault_pass*

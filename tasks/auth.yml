@@ -1,0 +1,69 @@
+---
+# Aria Automation API sign-in, as the vRA Terraform provider and VMware's token guide do it:
+#   user name and password -> POST /csp/gateway/am/api/login?access_token -> refresh_token
+#   refresh_token          -> POST /iaas/api/login                       -> bearer token
+# Neither call changes anything, and both carry secrets, so they report ok and log nothing.
+
+- name: Exchange the user name and password for a refresh token
+  ansible.builtin.uri:
+    url: "{{ __aria_automation_deployment_base }}/csp/gateway/am/api/login?access_token"
+    method: POST
+    body_format: json
+    body: >-
+      {{ {'username': aria_automation_deployment_username, 'password': aria_automation_deployment_password}
+         | combine({'domain': aria_automation_deployment_domain} if aria_automation_deployment_domain | length > 0 else {}) }}
+    validate_certs: "{{ aria_automation_deployment_validate_certs }}"
+    timeout: "{{ aria_automation_deployment_http_timeout }}"
+  register: __aria_automation_deployment_csp_login
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+  when: aria_automation_deployment_refresh_token | length == 0
+
+- name: Check the user name and password were accepted
+  ansible.builtin.assert:
+    that:
+      - __aria_automation_deployment_csp_login.status | default(0) == 200
+      - __aria_automation_deployment_csp_login.json.refresh_token is defined
+    fail_msg: >-
+      Signing in to {{ __aria_automation_deployment_base }} as {{ aria_automation_deployment_username }}
+      failed (HTTP {{ __aria_automation_deployment_csp_login.status | default('no response') }}). Check the
+      user name, password and aria_automation_deployment_domain, and the URL.
+    quiet: true
+  when: aria_automation_deployment_refresh_token | length == 0
+
+- name: Exchange the refresh token for an access token
+  ansible.builtin.uri:
+    url: "{{ __aria_automation_deployment_base }}/iaas/api/login"
+    method: POST
+    body_format: json
+    body:
+      refreshToken: >-
+        {{ aria_automation_deployment_refresh_token if aria_automation_deployment_refresh_token | length > 0
+           else __aria_automation_deployment_csp_login.json.refresh_token }}
+    validate_certs: "{{ aria_automation_deployment_validate_certs }}"
+    timeout: "{{ aria_automation_deployment_http_timeout }}"
+  register: __aria_automation_deployment_iaas_login
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Check the refresh token was accepted
+  ansible.builtin.assert:
+    that:
+      - __aria_automation_deployment_iaas_login.status | default(0) == 200
+      - __aria_automation_deployment_iaas_login.json.token is defined
+    fail_msg: >-
+      {{ __aria_automation_deployment_base }}/iaas/api/login refused the refresh token (HTTP
+      {{ __aria_automation_deployment_iaas_login.status | default('no response') }}). API tokens expire:
+      create a new one, or check the URL.
+    quiet: true
+
+- name: Keep the request headers
+  ansible.builtin.set_fact:
+    __aria_automation_deployment_headers:
+      Authorization: "Bearer {{ __aria_automation_deployment_iaas_login.json.token }}"
+      Accept: application/json
+  no_log: true

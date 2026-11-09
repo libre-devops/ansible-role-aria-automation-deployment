@@ -1,0 +1,33 @@
+---
+# Example values for examples/playbook.yml. Copy it to lab.vault.yml (which .gitignore keeps out
+# of git), fill in your own values, and encrypt it:
+#   ansible-vault encrypt lab.vault.yml
+# Every value here is made up.
+aria_automation_deployment_url: https://automation.example.com
+aria_automation_deployment_refresh_token: replace-with-your-api-token
+aria_automation_deployment_project: Test lab
+
+aria_automation_deployment_deployments:
+  - name: test-rhel9-01
+    catalog_item: Linux server
+    inputs:
+      image: rhel9
+      cpu: 2
+      memory_mb: 4096
+  - name: test-rhel8-01
+    catalog_item: Linux server
+    inputs:
+      image: rhel8
+      cpu: 2
+      memory_mb: 4096
+
+# Which properties of each machine to use. Check your catalog item's machines with
+# aria_automation_deployment_no_log: false, or in the Aria Automation deployment view.
+aria_automation_deployment_host_name: "{{ resource.properties.resourceName }}"
+aria_automation_deployment_host_vars:
+  ansible_host: "{{ resource.properties.address }}"
+  ansible_user: root
+
+aria_automation_deployment_groups:
+  - test_vms
+aria_automation_deployment_inventory_file: inventory/test-vms.yml
