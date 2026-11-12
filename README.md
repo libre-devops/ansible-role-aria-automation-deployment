@@ -13,7 +13,7 @@ Requests, waits for, uses and deletes VMware Aria Automation 8 (vRealize Automat
 
 [![CI](https://github.com/libre-devops/ansible-role-aria-automation-deployment/actions/workflows/ci.yml/badge.svg)](https://github.com/libre-devops/ansible-role-aria-automation-deployment/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/libre-devops/ansible-role-aria-automation-deployment?sort=semver&label=release)](https://github.com/libre-devops/ansible-role-aria-automation-deployment/releases/latest)
-[![Galaxy](https://img.shields.io/badge/galaxy-libre__devops.aria__automation__deployment-EE0000?logo=ansible&logoColor=white)](https://galaxy.ansible.com/ui/standalone/roles/libre_devops/aria_automation_deployment/)
+[![Galaxy](https://img.shields.io/badge/galaxy-libre__devops.aria__automation__deployment-EE0000?logo=ansible&logoColor=white)](https://galaxy.ansible.com/ui/standalone/roles/libre_devops/aria_automation_deployment/documentation/)
 [![Licence](https://img.shields.io/github/license/libre-devops/ansible-role-aria-automation-deployment)](./LICENSE)
 
 ---
